@@ -1,3 +1,12 @@
+# Tweepy Image Downloader by Christopher Tran
+# 03/23/2022
+#
+# A Python application designed to download images from twitter tweets. Currently, being used
+# with a personal twitter account that is mainly used to transfer photos from different 
+# applications to my home computer. This app is designed to simplify the process and avoid the
+# unnecessary overhead of transferring through USB/phone/email/etc, logging into my twitter
+# account on my pc, and such extra steps.
+
 import tweepy   #For Twitter API
 import requests #For downloading images
 import json     #For importing Tokens from JSON
@@ -51,10 +60,10 @@ if selection == 'y' or selection == 'Y':
     latest_Tweet_Media_Filename = location + filename + extension   #Combine location, filename, and extension for saving
 
     #Print information about the image being downloaded and then download it
-    print("\n--- IMG NAME: " + filename + " ---\n" + "IMG SRC: " + latest_Tweet_Media_URL_Lg + "\nSAVE LOCATION: " + latest_Tweet_Media_Filename + "\n")
-    img_data = requests.get(latest_Tweet_Media_URL_Lg).content
+    print("\n--- IMG NAME: " + filename + " ---\n" + "IMG SOURCE: \t" + latest_Tweet_Media_URL_Lg + "\nSAVE LOCATION: \t" + latest_Tweet_Media_Filename + "\n")
+    img_Data = requests.get(latest_Tweet_Media_URL_Lg).content
     with open(latest_Tweet_Media_Filename, 'wb') as handler:
-        handler.write(img_data)
+        handler.write(img_Data)
     os.system("pause")
 else:
     print("Save declined")
