@@ -1,6 +1,1 @@
 *.json
-*.spec
-_pycache_/
-_pycache_/Tweepy_Image_Downloader.cpython-310.pyc
-build/
-dist/
