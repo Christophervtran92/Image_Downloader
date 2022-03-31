@@ -1,4 +1,4 @@
-# Tweepy_Image_Downloader
+# Image_Downloader
 A python application used to download images from tweets.
 
 ## Functionality(s)
