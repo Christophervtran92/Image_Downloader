@@ -1,36 +1,72 @@
-from turtle import window_width
 import tweepy   #For Twitter API
 import requests #For downloading images
 import json     #For importing Tokens from JSON
-from tkinter import *           #For GUI
-from tkinter import ttk
+from tkinter import *   #For GUI
+from tkinter import messagebox
 from PIL import ImageTk, Image  #For images
 from io import BytesIO
+from winreg import *
 
+# Function:     download
+# Description:  Helper function to handle the download functionality of the program, called when the Download button is pressed
+#               on the GUI. It then downloads the image associated with that particular download button and saves to the
+#               download folder. Currently only supports Windows.
+# Argument(s):  info:   JSON with tweet information used to generate info on the download info messagebox and location to
+#                       download the image from
+def download(info):
+    # From: https://www.reddit.com/r/learnpython/comments/4dfh1i/how_to_get_the_downloads_folder_path_on_windows/
+    # Get user Download folder for saving
+    with OpenKey(HKEY_CURRENT_USER, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders') as key:
+        location = QueryValueEx(key, '{374DE290-123F-4565-9164-39C4925E467B}')[0]
+    filename = info["id"]
+    extension = ".jpg"
+    save_Location = location + "\\" + filename + extension
+    truncated_Url = info["url"][0:len(info["url"])-4]
+    media_Url_Lg = truncated_Url + "?format=jpg&name=4096x4096"
+    print("File: " + save_Location)
+    img_Data = requests.get(media_Url_Lg).content
+    with open(save_Location, 'wb') as handler:
+        handler.write(img_Data)
+    download_Info = ("\nFilename:\n" + filename + extension +
+                    "\n\nSave Location:\n" + save_Location)
+    messagebox.showinfo("Download Info", download_Info)
+
+# Function:     gui
+# Description:  Displays a GUI with large thumbnails, information, and download buttons for images from twitter tweets
+# Argument(s):  tokens: JSON file with twitter authentication keys
 def gui(tokens):
+    #Create the window for the application
+    window = Tk(screenName="Image Downloader", baseName=None, className="Image Downloader", useTk=1)
+    window.geometry('1000x900')
+    window.title("Image Downloader")
+
+    #Authenticate the twitter account with info from tokens.json
     auth = tweepy.OAuth1UserHandler(
         tokens["api_Key"], tokens["api_Key_Secret"], tokens["access_Token"], tokens["access_Token_Secret"]
     )
     api = tweepy.API(auth)                          #Ready the API
     tweets_Timeline = api.user_timeline(count=10)   #Grab the 10 latest tweets
-    imagesId = []
-    imagesUrl = []                                  #Empty array to hold all the image URLs
-    imageCreationTime = []
-    imagesHashtags = []
-    for tweet in tweets_Timeline:                   #Loop through and load the urls for images from tweets
-        imagesId.append(str(api.get_status(tweet.id).entities["media"][0]['id']))
-        imagesUrl.append(str(api.get_status(tweet.id).entities["media"][0]["media_url"]))
-        imageCreationTime.append(api.get_status(tweet.id).created_at.ctime())
+    
+    #Loop through and add tweet info into a JSON and store it into details array
+    detailsArray = []
+    for tweet in tweets_Timeline:
         tempHashtag = api.get_status(tweet.id).entities["hashtags"]
         hashtagArray = []
         for hashtag in tempHashtag:
             hashtagArray.append(hashtag['text'])
-        imagesHashtags.append(hashtagArray)
+        url = str(api.get_status(tweet.id).entities["media"][0]["media_url"])
+        maxsize = (600, 600)
+        imageURL = requests.get(url)
+        picture = Image.open(BytesIO(imageURL.content))
+        picture.thumbnail(maxsize, Image.Resampling.LANCZOS)
 
-    #Create the window for the application
-    window = Tk(screenName="Image Downloader", baseName=None, className="Image Downloader", useTk=1)
-    window.geometry('1000x900')
-    window.title("Image Downloader")
+        #Store id, url, time created, and thumbnail into a JSON for current tweet and append to detailsArray
+        infoJSON = {"id": str(api.get_status(tweet.id).entities["media"][0]['id']),
+                    "url": str(api.get_status(tweet.id).entities["media"][0]["media_url"]),
+                    "time":  api.get_status(tweet.id).created_at.ctime(),
+                    "hashtags": hashtagArray,
+                    "thumbnail": ImageTk.PhotoImage(picture)}
+        detailsArray.append(infoJSON)
 
     #Create the menu for the application
     menu = Menu(window)
@@ -47,20 +83,12 @@ def gui(tokens):
     helpMenu.add_command(label="Instructions")
     helpMenu.add_command(label="About")
 
-    maxsize = (600, 600)
-    thumbnails = []
-    for url in imagesUrl:
-        imageURL = requests.get(url)
-        picture = Image.open(BytesIO(imageURL.content))
-        picture.thumbnail(maxsize, Image.Resampling.LANCZOS)
-        thumbnails.append(ImageTk.PhotoImage(picture))
-
     #Frame to hold the canvas and scrollbar
     frame = Frame(window, width=700, height=850)
     frame.pack(expand=True, fill=BOTH)
 
     #scroll region (approx height of frames) * len(thumbnails) where thumbnails array of images
-    canvas = Canvas (frame, bg="#1da1f2", width=700, height=850, scrollregion=(0,0,900, 375 * len(thumbnails)))
+    canvas = Canvas (frame, bg="#1da1f2", width=700, height=850, scrollregion=(0,0,900, 371 * len(detailsArray)))
 
     #Create a vertical scrollbar and place it on the RHS of frame, bind it to scroll canvas vertically
     scrollbar = Scrollbar(frame, orient=VERTICAL)
@@ -73,63 +101,28 @@ def gui(tokens):
     canvas.pack(expand=True, side=LEFT, fill=BOTH)
 
     padding = 190   #Increase default padding for top most frame
-    row = 0
-    for thumbnail in thumbnails:
-        infoFrame = LabelFrame(text=" " + imagesUrl[row] + " ", font=("Arial", 12)) #Parent frame for L&R frames
+    for details in detailsArray:
+        infoFrame = LabelFrame(text=" " + details["url"] + " ", font=("Arial", 12)) #Parent frame for L&R frames
         leftFrame = Frame(infoFrame)    #lhs frame to hold thumbnail image
         leftFrame.pack(side = LEFT)     #place it on the lhs of infoFrame
         rightFrame = Frame(infoFrame)   #rhs frame to hold information and dl button
         rightFrame.pack(side = RIGHT)   #place it on the rhs of infoFrame
-        label = Label(infoFrame, image=thumbnail)   #Label to display the thumbnail image
+        label = Label(infoFrame, image=details["thumbnail"])   #Label to display the thumbnail image
         label.pack(side = LEFT)                     #Place it on lhs of infoFrame
         infoBox = Text(rightFrame, width=35, height=16, padx=5)
-        description = ( "Id:\n" + imagesId[row] +
-                        "\n\nCreated at:\n" + imageCreationTime[row]  +
-                        "\n\nHashtags: " + str(imagesHashtags[row]))
+        description = ( "Id:\n" + details['id'] +
+                            "\n\nCreated on:\n" + details['time'] +
+                            "\n\nHashtags: " + str(details["hashtags"]))
         infoBox.insert(END, description)
         infoBox.config(state="disabled")
         infoBox.pack(side = TOP, padx=5) #Place the infoBox on the top side of the right frame
-        downloadBtn = Button(rightFrame, text="Download", width=20, height=2)
+
+        #Info for making unique buttons on each loop found here: 
+        #https://stackoverflow.com/questions/10865116/tkinter-creating-buttons-in-for-loop-passing-command-arguments
+        downloadBtn = Button(rightFrame, text="Download", width=20, height=2, command= lambda details=details: download(details, window))
         downloadBtn.pack(side = BOTTOM, anchor="s", pady=15) #Placed at bottom of RHS of infoFrame, padding away from infoBox
         canvas.create_window(475, padding, window=infoFrame) #first number adjusts the lhs padding for each window
         padding += 370  #Adjust padding increment as needed to add spacing between frames
-        row += 1
-
-    # canvas = Canvas(window)
-    # canvas.grid()
-    # canvas.pack()
-
-    # row = 0
-    # for thumbnail in thumbnails:
-    #     label = Label(canvas, image=thumbnail).grid(row=row, column = 0)
-    #     downloadBtn = Button(canvas, text="Download", width=15, height=4).grid(row=row, column=4, columnspan=2, padx="100")
-    #     row += 1
-
-    # scrollbar = Scrollbar(window, orient=VERTICAL)
-    # scrollbar.pack()
-    # canvas.config(yscrollcommand = scrollbar.set)
-    # scrollbar.config(command=canvas.yview)
-
-    # label = Label(image=thumbnails[0])
-    # label.grid(row=0, column=0, columnspan=3)
-    # downloadBtn = Button(window, text="Download", width=15, height=4)
-    # downloadBtn.grid(row=0, column=4, columnspan=2, padx="100")
-    # label2 = Label(image=thumbnails[1])
-    # label2.grid(row=1, column=0, columnspan=3)
-    # downloadBtn2 = Button(window, text="Download", width=15, height=4)
-    # downloadBtn2.grid(row=1, column=4, columnspan=2, padx="100")
-    # label3 = Label(image=thumbnails[2])
-    # label3.grid(row=2, column=0, columnspan=3)
-    # downloadBtn3 = Button(window, text="Download", width=15, height=4)
-    # downloadBtn3.grid(row=2, column=4, columnspan=2, padx="100")
-    # label4 = Label(image=thumbnails[3])
-    # label4.grid(row=3, column=0, columnspan=3)
-    # downloadBtn4 = Button(window, text="Download", width=15, height=4)
-    # downloadBtn4.grid(row=3, column=4, columnspan=2, padx="100")
-    # label5 = Label(image=thumbnails[4])
-    # label5.grid(row=4, column=0, columnspan=3)
-    # downloadBtn5 = Button(window, text="Download", width=15, height=4)
-    # downloadBtn5.grid(row=4, column=4, columnspan=2, padx="100")
 
     window.mainloop()
 
