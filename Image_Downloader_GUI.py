@@ -1,12 +1,12 @@
-import tweepy   #For Twitter API
-import requests #For downloading images
-import json     #For importing Tokens from JSON
-from tkinter import *   #For GUI
-from tkinter import messagebox
-from tkinter import font
-from PIL import ImageTk, Image  #For images
-from io import BytesIO
-from winreg import *
+import tweepy   # For Twitter API
+import requests # For downloading images
+import json     # For importing Tokens from JSON
+from tkinter import *           # For GUI
+from tkinter import messagebox  # For tweet info box
+from tkinter import font        # For font styling
+from PIL import ImageTk, Image  # For images
+from io import BytesIO          # For getting thumbnails
+from winreg import *            # For getting download folder path on windows
 
 # Function:     download
 # Description:  Helper function to handle the download functionality of the program, called when the Download button is pressed
@@ -36,20 +36,20 @@ def download(info):
 # Description:  Displays a GUI with large thumbnails, information, and download buttons for images from twitter tweets
 # Argument(s):  tokens: JSON file with twitter authentication keys
 def gui(tokens):
-    #Create the window for the application
+    # Create the window for the application
     window = Tk(screenName="Image Downloader", baseName=None, className="Image Downloader", useTk=1)
     window.geometry("1200x900")
     window.title("Image Downloader")
     window.resizable(False, False)
 
-    #Authenticate the twitter account with info from tokens.json
+    # Authenticate the twitter account with info from tokens.json
     auth = tweepy.OAuth1UserHandler(
         tokens["api_Key"], tokens["api_Key_Secret"], tokens["access_Token"], tokens["access_Token_Secret"]
     )
-    api = tweepy.API(auth)                          #Ready the API
-    tweets_Timeline = api.user_timeline(count=10)   #Grab the 10 latest tweets
+    api = tweepy.API(auth)                          # Ready the API
+    tweets_Timeline = api.user_timeline(count=10)   # Grab the 10 latest tweets
     
-    #Loop through and add tweet info into a JSON and store it into details array
+    # Loop through and add tweet info into a JSON and store it into details array
     detailsArray = []
     for tweet in tweets_Timeline:
         tempHashtag = api.get_status(tweet.id).entities["hashtags"]
@@ -62,7 +62,7 @@ def gui(tokens):
         picture = Image.open(BytesIO(imageURL.content))
         picture.thumbnail(maxsize, Image.Resampling.LANCZOS)
 
-        #Store id, url, time created, and thumbnail into a JSON for current tweet and append to detailsArray
+        # Store id, url, time created, and thumbnail into a JSON for current tweet and append to detailsArray
         infoJSON = {"id": str(api.get_status(tweet.id).entities["media"][0]["id"]),
                     "url": str(api.get_status(tweet.id).entities["media"][0]["media_url"]),
                     "time":  api.get_status(tweet.id).created_at.ctime(),
@@ -70,62 +70,69 @@ def gui(tokens):
                     "thumbnail": ImageTk.PhotoImage(picture)}
         detailsArray.append(infoJSON)
 
-    #Create the menu for the application
+    # Create the menu for the application
     menu = Menu(window)
     window.config(menu=menu)
 
-    #Start with a file menu with an exit button, add additional buttons as needed
+    # Start with a file menu with an exit button, add additional buttons as needed
     fileMenu = Menu(menu)
     menu.add_cascade(label="File", menu=fileMenu)
     fileMenu.add_command(label="Exit", command=window.quit)
 
-    #Create a help menu with instructions and about button
+    # Create a help menu with instructions and about button
     helpMenu = Menu(menu)
     menu.add_cascade(label="Help", menu=helpMenu)
     helpMenu.add_command(label="Instructions")
     helpMenu.add_command(label="About")
 
-    #Frame to hold the canvas and scrollbar
+    # Frame to hold the canvas and scrollbar
     frame = Frame(window, width=700, height=850)
     frame.pack(expand=True, fill=BOTH)
 
-    #scroll region (approx height of frames) * len(detailsArray) where len(detailsArray) is number of images
+    # scroll region (approx height of frames) * len(detailsArray) where len(detailsArray) is number of images
     canvas = Canvas (frame, bg="#1da1f2", width=700, height=850, scrollregion=(0,0,900, 392 * len(detailsArray)))
 
-    #Create a vertical scrollbar and place it on the RHS of frame, bind it to scroll canvas vertically
+    # Create a vertical scrollbar and place it on the RHS of frame, bind it to scroll canvas vertically
     scrollbar = Scrollbar(frame, orient=VERTICAL)
     scrollbar.pack(side=RIGHT, fill=Y)
     scrollbar.config(command=canvas.yview)
 
-    #Configure the scroll of the canvas to be controlled by scrollbar, place on frame LHS
-    #Canvas size seems to be dictated by the widgets placed inside
+    # Configure the scroll of the canvas to be controlled by scrollbar, place on frame LHS
+    # Canvas size seems to be dictated by the widgets placed inside
     canvas.config(yscrollcommand=scrollbar.set)
     canvas.pack(expand=True, side=LEFT, fill=BOTH)
 
-
-    padding = 210   #Increase default padding for top most frame
+    padding = 210   # Increase default padding for top most frame
     for details in detailsArray:
-        infoFrame = LabelFrame(text=" ID: " + details["id"] + " ", font=("Arial", 12, font.BOLD)) #Parent frame for L&R frames
-        leftFrame = Frame(infoFrame)    #lhs frame to hold thumbnail image
-        leftFrame.pack(side = LEFT, padx=5, pady=15)     #place it on the lhs of infoFrame
-        rightFrame = Frame(infoFrame)   #rhs frame to hold information and dl button
-        rightFrame.pack(side = RIGHT, padx=5, pady=15)   #place it on the rhs of infoFrame
-        label = Label(infoFrame, image=details["thumbnail"], relief="solid")   #Label to display the thumbnail image
-        label.pack(side = LEFT)                     #Place it on lhs of infoFrame
+        infoFrame = LabelFrame(text=" ID: " + details["id"] + " ", font=("Arial", 12, font.BOLD)) # Parent frame for L&R frames
+        leftFrame = Frame(infoFrame)    # lhs frame to hold thumbnail image
+        leftFrame.pack(side = LEFT, padx=5, pady=15)     # place it on the lhs of infoFrame
+        rightFrame = Frame(infoFrame)   # rhs frame to hold information and dl button
+        rightFrame.pack(side = RIGHT, padx=5, pady=15)   # place it on the rhs of infoFrame
+        label = Label(infoFrame, image=details["thumbnail"], relief="solid")   # Label to display the thumbnail image
+        label.pack(side = LEFT)                     # Place it on lhs of infoFrame
         infoBox = Text(rightFrame, width=35, height=16, padx=5, relief="solid")
         description = ( "Url:\n" + details["url"] +
                             "\n\nCreated on:\n" + details["time"] +
                             "\n\nHashtags: " + str(details["hashtags"]))
         infoBox.insert(END, description)
         infoBox.config(state="disabled")
-        infoBox.pack(side = TOP, padx=5) #Place the infoBox on the top side of the right frame
+        infoBox.pack(side = TOP, padx=5) # Place the infoBox on the top side of the right frame
 
-        #Info for making unique buttons on each loop found here: 
-        #https://stackoverflow.com/questions/10865116/tkinter-creating-buttons-in-for-loop-passing-command-arguments
+        # Info for making unique buttons on each loop found here: 
+        # https://stackoverflow.com/questions/10865116/tkinter-creating-buttons-in-for-loop-passing-command-arguments
         downloadBtn = Button(rightFrame, text="Download", width=20, height=2, command= lambda details=details: download(details))
-        downloadBtn.pack(side = BOTTOM, anchor='s', pady=15) #Placed at bottom of RHS of infoFrame, padding away from infoBox
-        canvas.create_window(580, padding, window=infoFrame) #first number adjusts the lhs padding for each window
-        padding += 390  #Adjust padding increment as needed to add spacing between frames
+        downloadBtn.pack(side = BOTTOM, anchor='s', pady=15) # Placed at bottom of RHS of infoFrame, padding away from infoBox
+        canvas.create_window(580, padding, window=infoFrame) # First number adjusts the lhs padding for each window
+        padding += 390  # Adjust padding increment as needed to add spacing between frames
+
+        # Make window scrollable with mouse wheel
+        # Info found at:
+        # https://stackoverflow.com/questions/17355902/tkinter-binding-mousewheel-to-scrollbar
+        # https://www.daniweb.com/programming/software-development/code/217059/using-the-mouse-wheel-with-tkinter-python
+        def mouse_wheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        window.bind("<MouseWheel>", mouse_wheel)
 
     window.mainloop()
 
