@@ -32,15 +32,45 @@ def download(info):
                     "\n\nSave Location:\n" + save_Location)
     messagebox.showinfo("Download Info", download_Info)
 
+# Function:     about
+# Description:  Function to display message box with about info for the application.
+def about():
+    about_description = ("Image Downloader by Christopher Tran (2022)\n\n" +
+                         "GUI based application to download images from tweets. TKinter used to build GUI and Tweepy" +
+                          " used to access Twitter API.")
+    messagebox.showinfo("About", about_description)
+
+# Function:     instructions
+# Description:  Function to display message box with instructions and info for the application.
+def instructions():
+    instructions_description = ("Thumbnail:\nLeft side of the card shows a thumbnail preview of the image.\n\n" +
+                                "Media_ID:\nShown as the title of each card.\n\n" + 
+                                "Url:\nMedia URL of the particular image.\n\n" +
+                                "Created On:\nThe date when the tweet was published.\n\n" +
+                                "Hashtags:\nThe hashtags for the tweet to help with identification.\n\n" +
+                                "Downloading:\nPress the download button of the image you want to download and it will be" +
+                                " downloaded to your Windows default Download folder with the media ID as its" +
+                                " filename.")
+    messagebox.showinfo("Instruction", instructions_description)
+
 # Function:     gui
 # Description:  Displays a GUI with large thumbnails, information, and download buttons for images from twitter tweets
 # Argument(s):  tokens: JSON file with twitter authentication keys
 def gui(tokens):
     # Create the window for the application
     window = Tk(screenName="Image Downloader", baseName=None, className="Image Downloader", useTk=1)
-    window.geometry("1200x900")
     window.title("Image Downloader")
     window.resizable(False, False)
+
+
+    #Center the window on the screen
+    window_Width = 1200
+    window_Height = 900
+    screen_Width = window.winfo_screenwidth()
+    screen_Height = window.winfo_screenheight()
+    x_Start = (screen_Width/2) - (window_Width/2)
+    y_Start = (screen_Height/2) - (window_Height/2)
+    window.geometry('%dx%d+%d+%d' % (window_Width, window_Height, x_Start, y_Start))
 
     # Authenticate the twitter account with info from tokens.json
     auth = tweepy.OAuth1UserHandler(
@@ -82,8 +112,8 @@ def gui(tokens):
     # Create a help menu with instructions and about button
     helpMenu = Menu(menu)
     menu.add_cascade(label="Help", menu=helpMenu)
-    helpMenu.add_command(label="Instructions")
-    helpMenu.add_command(label="About")
+    helpMenu.add_command(label="Instructions", command= lambda: instructions())
+    helpMenu.add_command(label="About", command= lambda: about())
 
     # Frame to hold the canvas and scrollbar
     frame = Frame(window, width=700, height=850)
